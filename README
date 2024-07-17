@@ -1,0 +1,104 @@
+Simiocencu Andrei 341C2
+
+Descriere implementare:
+    Neoptimizata:
+        Aceasta este varianta clasica cu 3 for-uri fara vreun fel de optimizare.
+        Matricile sunt alocate cu calloc pentru a fi initializate cu 0 si fiecare au elementele stocate intr-un array
+        continuu de dimensiune N x N.
+        Datorita modului in care matricea e stocata in memorie am fost nevoit sa inlocuiesc metoda clasica de a accesa
+        un element folosind direct 2 indecsi cu metoda in care inmultim primul index cu N si apoi adunam al doilea index.
+        Singura optimizare de care am tinut cont a fost ca matricea A este superior triunghiulara(si implicit
+        de faptul ca transpusa ei va fi inferior triunghiulara).
+        Atunci cand am transpus matricea A m-am asigurat ca accesez doar elementele de pe diagonala principala
+        si de deasupra acesteia.
+        In mod similar atunci cand am inmultit matricea B cu A, respectiv A transpus am ajustat doar range-ul din for-ul
+        interior pentru a evita accesul de elemente cu valoarea 0 de sub diagonala principala, respectiv de deasupra.
+        In ceea ce priveste ordinea operatiilor mai intai realizez cele 2 inmultiri din paranteza, adun rezultatele 
+        si in final inmultesc rezultatul parantezei cu B_transpus si returnez acest calcul, nu inainte de a elibera
+        memoria folosita.
+
+    Optimizata:
+        Scopul a fost imbunatatirea timpului de executie a variantei neoptimizate fara a schimba prea mult din codul original.
+        Prima optimizare minora a fost sa fac transpusa lui A si a lui B deodata tinand totusi cont de valoarea lui j si i pentru A.
+        Optimizarile principale le-am facut in cadrul inmultirilor de matrici.
+        Mai intai m-am asigurat ca tin variabila in care adun sumele fiecarei iteratii a for-ului interior intr-un registru, la fel si
+        indecsi for-urilor. Apoi am folosit direct pointeri pe care i-am stocat in registri spre elementele necesare pe care i-am updatat 
+        folosind pointer arithmetics.
+        Toate acestea mi-au dus timpul de executie pentru testul cu N = 1200 la o valoare care e constant < 10s pe partitia haswell.
+
+    BLAS:
+        Odata ce am gasit functiile potrivite si le-am inteles parametri a fost destul de usor sa implementez aceasta varianta.
+        functia dcopy o folosesc pentru a copia datele initiale intr-o matrice auxiliara intrucat functia dtrmm suprascrie al doilea argument.
+        daxpy o folosesc pentru a realiza adunarea din cadrul parantezei.
+        In final folosesc dgemm deoarece imi permite sa salvez rezultatul inmultirii parantezei cu B transpus intr-o variabila noua fara a suprascrie
+        inputul original, eliberez memoria auxiliara si returnez ultima matrice.
+        Un alt aspect important care m-a facut sa folosesc dgemm si dtrmm a fost ca acestea imi permit sa ma folosesc de faptul ca B trebuie transpusa
+        si de faptul ca A trebuie transpusa si ca este superior triunghiulara.
+
+
+Memory Leaks:
+    Valgrind n-a gasit leak-uri in niciuna din cele 3 din implementari.
+
+
+Cache:
+    Neopt:
+        Numarul mare de instructiuni, data references si miss rate-ul de 3.81% pentru D1 indica ineficiente in ceea ce priveste accesul datelor, ceea 
+        ce nu este surprinzator avand in vedere ca este o implementare de baza fara optimizari.
+
+    Opt:
+        Numarul de instructiuni si data references este redus considerabil fata de varianta de baza, ceea ce indica un cod mai eficient. Chiar daca miss
+        rate-ul pentru D1 pare mare(24.2%), totalul de LL misses este mic, ceea ce indica o utilizare eficienta a ierarhiei cache-ului.
+        Branch prediction-ul este similar cu varianta neopt, lucru nesurprinzator deoarece codul este imbunatatit prin optimizarea accesului la
+        date, nu prin schimbarea control flow-ului.
+
+    BLAS:
+        Scaderea drastica a numarului instructiuni ne arata, asa cum ne-am astepta, ca libraria BLAS este foarte optimizata.
+        Miss rate-ul pentru D1 e mai mic decat pentru varianta optimizata non-BLAS, ceea ce indica o accesare mai buna a datelor
+        si o utilizare mai buna a cache-ului.
+        Chiar daca totalul de LL misses este mai mare fata de varianta opt, ramane relativ mic, ceea ce indica o utilizare eficienta a cache-ului.
+        Mispred rate-ul e mai mare la BLAS(1.2%) fata de variantele originale(0.4%), ceea ce se datoreaza cel mai probabil complexitatii rutinelor
+        BLAS-ului care au un control flow complex.
+
+    Neopt vs Opt:
+        Varianta opt are un numar mai mic de instructiuni si data references, acest lucru se datoreaza folosiri de pointeri si a registrilor.
+        Miss rate-ul mai mare pentru D1 din varianta opt se datoreaza unei mod de accesare a datelor mult mai agresiv prin folosirea de pointeri
+        si incrementarea directa a acestora.
+
+
+Analiza comparativa & Grafice:
+    Input folosit:
+        5
+        400 456 out1
+        800 456 out2
+        1200 456 out3
+        1600 456 out4
+        2000 456 out5
+
+    Rezultate:
+        Neopt:
+            Run=./tema3_neopt: N=400: Time=0.803796
+            Run=./tema3_neopt: N=800: Time=8.518361
+            Run=./tema3_neopt: N=1200: Time=28.436363
+            Run=./tema3_neopt: N=1600: Time=84.640671
+            Run=./tema3_neopt: N=2000: Time=144.384415
+
+        Opt_m:
+            Run=./tema3_opt_m: N=400: Time=0.207906
+            Run=./tema3_opt_m: N=800: Time=2.140434
+            Run=./tema3_opt_m: N=1200: Time=7.979221
+            Run=./tema3_opt_m: N=1600: Time=26.738745
+            Run=./tema3_opt_m: N=2000: Time=44.753178
+
+        BLAS:
+            Run=./tema3_blas: N=400: Time=0.034719
+            Run=./tema3_blas: N=800: Time=0.229008
+            Run=./tema3_blas: N=1200: Time=0.743647
+            Run=./tema3_blas: N=1600: Time=1.720181
+            Run=./tema3_blas: N=2000: Time=3.306728
+
+    Concluzii:
+        Timpul de rulare creste proportional cu dimensiunea lui N asa cum ne-am astepta, interesant este ca toate variantele
+        au un spike mare(raporat la valorile precedente) in jurul valorii ~1600 pentru numarul de lini si coloane.
+        Acest spike este mai dramatic cu cat implementarea este mai putin optimizata. 
+        Cea mai importanta concluzie pe care o putem trage este ca atunci cand lucram cu un input relativ mic optimizarile 
+        nu sunt asa importante insa devin pe masura ce creste dimensiunea input-ului.
